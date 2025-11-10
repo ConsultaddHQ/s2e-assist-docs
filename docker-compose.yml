@@ -1,0 +1,51 @@
+services:
+  s2e-frontend:
+    image: hyperflex/s2e-frontend:latest
+    restart: unless-stopped
+    ports:
+      - '8080:80'
+    depends_on:
+      - s2e-backend
+
+  s2e-backend:
+    image: hyperflex/s2e-backend:latest
+    restart: unless-stopped
+    ports:
+      - '4040:4040'
+    environment:
+      - ALERTS_MIGRATION_URL=http://alerts-migration:4041
+      - CAPACITY_PLANNER_URL=http://capacity-planning:4042
+      - S2E_POSTGRES_DB_HOST=s2e-postgres
+      - S2E_DB_USERNAME=admin
+      - S2E_DB_PASSWORD=admin123
+      - ES_API_KEY
+      - ES_API_URL
+      - MODEL_PROVIDER
+      - GROQ_API_KEY
+      - OPENAI_API_KEY
+      - AWS_REGION
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+    depends_on:
+      s2e-postgres:
+        condition: service_healthy
+  capacity-planning:
+    image: hyperflex/capacity-planning:latest
+    restart: unless-stopped
+    environment:
+      - CONTROL_PLANE_URL=http://s2e-backend:4040
+    depends_on:
+      - s2e-backend
+  s2e-postgres:
+    image: postgres:17
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 10s
+      retries: 5
+volumes:
+  postgres_data:
